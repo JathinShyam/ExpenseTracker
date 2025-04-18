@@ -1,74 +1,232 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, FlatList, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { FontAwesome } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
+import { CategoryChip } from '@/components/expense/CategoryChip';
+import { ExpenseItem } from '@/components/expense/ExpenseItem';
+import { AddExpenseModal } from '@/components/expense/AddExpenseModal';
+import { ViewExpenseModal } from '@/components/expense/ViewExpenseModal';
+import { EditExpenseModal } from '@/components/expense/EditExpenseModal';
+import { useAppContext, Expense, Category } from '@/context/AppContext';
 
-export default function HomeScreen() {
+export default function ExpensesScreen() {
+  const {
+    filteredExpenses,
+    currentFilterCategory,
+    setFilterCategory,
+    searchTerm,
+    setSearchTerm,
+    deleteExpense
+  } = useAppContext();
+
+  // State for modals
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isViewModalVisible, setIsViewModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+
+  // Handle expense item press
+  const handleExpensePress = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsViewModalVisible(true);
+  };
+
+  // Handle add expense button press
+  const handleAddExpense = () => {
+    setIsAddModalVisible(true);
+  };
+
+  // Handle edit expense
+  const handleEditExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsEditModalVisible(true);
+  };
+
+  // Handle delete expense
+  const handleDeleteExpense = async (id: number) => {
+    try {
+      await deleteExpense(id);
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+    }
+  };
+
+  // Categories for filter chips
+  const categories: { id: string; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'food', label: 'Food' },
+    { id: 'travel', label: 'Travel' },
+    { id: 'stay', label: 'Stay' },
+    { id: 'transport', label: 'Transport' },
+    { id: 'other', label: 'Other' },
+  ];
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <ThemedView style={styles.container}>
+      <StatusBar style="auto" />
+      
+      <View style={styles.header}>
+        <ThemedText type="title" style={styles.title}>Expenses</ThemedText>
+      </View>
+      
+      <View style={styles.searchContainer}>
+        <FontAwesome name="search" size={16} color="#525252" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by title..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          placeholderTextColor="#525252"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </View>
+      
+      <View style={styles.categoriesWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesContainer}
+          contentContainerStyle={styles.categoriesContent}
+          bounces={false}
+        >
+        {categories.map((category) => (
+          <CategoryChip
+            key={category.id}
+            category={category.id as Category | 'all'}
+            label={category.label}
+            isActive={currentFilterCategory === category.id}
+            onPress={() => setFilterCategory(category.id)}
+          />
+        ))}
+        </ScrollView>
+      </View>
+      
+      {filteredExpenses.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <FontAwesome name="search-minus" size={48} color="#525252" />
+          <ThemedText style={styles.emptyText}>
+            {searchTerm || currentFilterCategory !== 'all'
+              ? 'No expenses match the current filters.'
+              : 'No expenses yet. Click "+" to add one!'}
+          </ThemedText>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredExpenses}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <ExpenseItem expense={item} onPress={handleExpensePress} />
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+      
+      <TouchableOpacity style={styles.fab} onPress={handleAddExpense}>
+        <FontAwesome name="plus" size={24} color="white" />
+      </TouchableOpacity>
+      
+      {/* Modals */}
+      <AddExpenseModal
+        visible={isAddModalVisible}
+        onClose={() => setIsAddModalVisible(false)}
+        onSave={() => setIsAddModalVisible(false)}
+      />
+      
+      <ViewExpenseModal
+        visible={isViewModalVisible}
+        expense={selectedExpense}
+        onClose={() => setIsViewModalVisible(false)}
+        onEdit={handleEditExpense}
+        onDelete={handleDeleteExpense}
+      />
+      
+      <EditExpenseModal
+        visible={isEditModalVisible}
+        expense={selectedExpense}
+        onClose={() => setIsEditModalVisible(false)}
+        onSave={() => setIsEditModalVisible(false)}
+      />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    paddingTop: 60,
+  },
+  header: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+  },
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#f4f4f4',
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    height: 40,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  searchIcon: {
+    marginRight: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+  },
+  categoriesWrapper: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    zIndex: 1, // Ensure it stays above the list
+  },
+  categoriesContainer: {
+    height: 50, // Fixed height for the container
+  },
+  categoriesContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    paddingTop: 8,
+    alignItems: 'center', // Center items vertically
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 100, // Extra space for FAB
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 16,
+    color: '#525252',
+  },
+  fab: {
     position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0f62fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
 });
