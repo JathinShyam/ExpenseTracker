@@ -12,11 +12,11 @@
     "primaryColor": "#0f62fe",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.expensetracker",
+      "bundleIdentifier": "com.jathinshyam.expensetracker",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.yourcompany.expensetracker",
+      "package": "com.jathinshyam.expensetracker",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
